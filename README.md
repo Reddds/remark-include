@@ -7,8 +7,12 @@ files together.
 
 ## Install
 
+```package.json
+"@reddds/remark-include": "git+ssh://git@github.com/Reddds/remark-include.git#master",
+```
+
 ```console
-npm install remark-include
+npm install @reddds/remark-include,
 ```
 
 ## Usage
