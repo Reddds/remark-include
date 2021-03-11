@@ -1,5 +1,7 @@
 # remark-include
 
+**Forked from Qard/remark-include and now work with remark-loader 2.0.0**
+
 With remark-include, you can use @include statements to compose markdown
 files together.
 

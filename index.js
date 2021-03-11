@@ -4,86 +4,61 @@ var fs = require('fs')
 
 var parseInclude = /^@include (.*)(\n|$)/
 
-module.exports = function (options) {
-  var proc = this;
-  options = options || {}
-  var cwd = options.cwd || process.cwd()
+module.exports = function(options) {
+    var proc = this;
+    options = options || {}
+    var cwd = options.cwd || process.cwd()
 
-  var prt = proc.Parser.prototype
-  prt.blockTokenizers.include = tokenizer
-  prt.blockMethods.unshift('include')
+    return function transformer(ast, file) {
+        var children = ast.children
 
-  return function transformer(ast, file) {
-    var children = ast.children
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i]
 
-    for (var i = 0; i < children.length; i++) {
-      var child = children[i]
-      if (child.type === 'include') {
-        // Load file and create VFile
-        // console.log(cwd, file)
-        // var file = toFile(path.join(file.dirname || cwd, child.value))
+            if (child.type === 'paragraph' && child.children) {
+                let found = false;
+                let includeFileName = "";
+                child.children.forEach(subCh => {
+                    if (subCh.type === 'text' && parseInclude.test(subCh.value)) {
+                        found = true;
+                        includeFileName = subCh.value.match(parseInclude)[1];
+                    }
+                });
+                if (!found) {
+                    continue;
+                }
 
-        // Parse vfile contents
-        // var parser = new processor.Parser(file, null, processor)
-        var root = proc.runSync(proc.parse(
-          toFile(path.join(child.source.dirname || cwd, child.value))
-        ))
+                var root = proc.runSync(proc.parse(
+                    toFile(path.join(file.dirname || cwd, includeFileName))
+                ))
 
-        // Split and merge the head and tail around the new children
-        var head = children.slice(0, i)
-        var tail = children.slice(i + 1)
-        children = head.concat(root.children).concat(tail)
+                // Split and merge the head and tail around the new children
+                var head = children.slice(0, i)
+                var tail = children.slice(i + 1)
+                children = head.concat(root.children).concat(tail)
 
-        // Remember to update the offset!
-        i += root.children.length - 1
-      }
+                // Remember to update the offset!
+                i += root.children.length - 1
+            }
+
+
+        }
+
+        ast.children = children
     }
-
-    ast.children = children
-  }
-}
-
-function tokenizer (eat, value, silent) {
-  var self = this
-  var settings = self.options
-  var length = value.length + 1
-  var index = -1
-  var now = eat.now()
-  var node
-
-  if (silent && parseInclude.test(value)) {
-    return true
-  }
-
-  // Replace all lines beginning with @include
-  while (parseInclude.test(value)) {
-    var file = value.match(parseInclude)[1]
-    var frag = '@include ' + file
-    value = value.slice(frag.length)
-    eat(frag)({
-      type: 'include',
-      source: this.file,
-      value: file
-    })
-  }
-
-  return node
 }
 
 function toFile(full) {
-  return new VFile({path: full, contents: loadContent(full).toString('utf8')})
+    return new VFile({ path: full, contents: loadContent(full).toString('utf8') })
 }
 
 function loadContent(file) {
-  // console.log('loading', file)
-  try { return fs.readFileSync(file) }
-  catch (e) {}
+    // console.log('loading', file)
+    try { return fs.readFileSync(file) } catch (e) {}
 
-  try { return fs.readFileSync(file + '.md') }
-  catch (e) {}
+    try { return fs.readFileSync(file + '.md') } catch (e) {}
 
-  try { return fs.readFileSync(file + '.markdown') }
-  catch (e) {}
+    try { return fs.readFileSync(file + '.markdown') } catch (e) {}
 
-  throw new Error('Unable to include ' + file)
+    throw new Error('Unable to include ' + file)
 }
